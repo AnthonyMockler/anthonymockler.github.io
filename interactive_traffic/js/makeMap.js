@@ -12,7 +12,7 @@ var map = L.map('map', {
     layers: [baseMap]
 });
 
-  Papa.parse('../data/newtest.csv', {
+  Papa.parse('https://raw.githubusercontent.com/AnthonyMockler/anthonymockler.github.io/master/interactive_traffic/data/newtest.csv', {
     download: true,
     header: true,
     dynamicTyping: true,
