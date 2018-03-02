@@ -95,7 +95,7 @@
         if (geoJsonFeature.properties.isOrigin) {
           return {
             renderer: canvasRenderer, // recommended to use L.canvas()
-            radius: 5,
+            radius: 10,
             weight: 1,
             color: 'rgb(195, 255, 62)',
             fillColor: 'rgba(195, 255, 62, 0.6)',
@@ -104,7 +104,7 @@
         } else {
           return {
             renderer: canvasRenderer,
-            radius: 2.5,
+            radius: 5,
             weight: 0.25,
             color: 'rgb(17, 142, 170)',
             fillColor: 'rgb(17, 142, 170)',
@@ -269,7 +269,7 @@
     },
 
     bringToBack: function() {
-      // call the L.GeoJSON bringToBack method to manage the point graphics    
+      // call the L.GeoJSON bringToBack method to manage the point graphics
       L.GeoJSON.prototype.bringToBack.call(this);
 
       // keep the animation canvas element on top of the main canvas element
@@ -281,10 +281,10 @@
       return this;
     },
 
-    bringToFront: function() {      
+    bringToFront: function() {
       // keep the main canvas element underneath the animation canvas element
       L.DomUtil.toFront(this._canvasElement);
-      
+
       // keep the animation canvas element on top of the main canvas element
       L.DomUtil.toFront(this._animationCanvasElement);
 
