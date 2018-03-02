@@ -19,9 +19,13 @@ var baseMap = L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?
 // Fetch GeoJSON and data to join to it
 $.when(
   $.getJSON('https://raw.githubusercontent.com/pemiluAPI/pemilu-data/master/dapil/shapefiles/admin_kabupaten/geojson/KABUKOTA_ADMINISTRATIVE_AREA-SIMPLIFIED.geojson'),
-  $.getJSON('http://139.59.230.55/frontend/api/maps/disaster'),
-  $.getJSON('http://139.59.230.55/frontend/api/maps/vulnerable'),
-  $.getJSON('http://139.59.230.55/frontend/api/maps/area')
+  // Can't do this on secure sites because this API doesn't support HTTPS. Just going to store them local
+  //$.getJSON('http://139.59.230.55/frontend/api/maps/disaster'),
+  //$.getJSON('http://139.59.230.55/frontend/api/maps/vulnerable'),
+  //$.getJSON('http://139.59.230.55/frontend/api/maps/area')
+  $.getJSON('data/disaster.json'),
+  $.getJSON('data/vulnerable.json'),
+  $.getJSON('data/area.json')
 ).done(function (responseGeojson, responseDisaster, responseVulnerable, responseArea) {
     var disaster = responseDisaster[0]
     var vulnerable = responseVulnerable[0]
