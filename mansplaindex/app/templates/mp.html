@@ -1,0 +1,6 @@
+{% extends "base.html" %} {% block content %}
+<div class='col-sm-2'><img src="https://www.aph.gov.au/api/parliamentarian/{{member.aphkey}}/image"></div>
+<h3>Hi, my name is {{member.FirstName}} {{member.Surname}} </h3>
+<p> and I am a total mansplainer</p>
+<p> Last year, I interrupted women {{ member.percent_female * 100 }}% of the time I opened my mouth. </p>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %} {% block content %}
+<h3>Choose your Local Member</h3>
+{% for mp in mps %}
+<li>
+    <a href="/show/{{mp.constituency}}">
+        <img src="http://openaustralia.org.au{{mp.image}}"> {{mp.first_name}} {{mp.last_name}}, {{mp.constituency}}</a>
+</li>
+{% endfor %} {% endblock %}
