@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Next Chess Move — free online chess calculator</title>
+<meta name="description" content="Set up any position, pick a side, get Stockfish 19 top 3 moves. Free, private, runs in your browser.">
+<style>
+:root{--sq:64px;--light:#f0d9b5;--dark:#b58863;--hl:#f7ec59;--sel:#20c997;--bg:#1a1d21;--panel:#24282e;--ink:#f2f2f2;--mut:#a9b0b8;--acc:#4dabf7}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif}
+header{text-align:center;padding:18px 12px 6px}header h1{margin:0;font-size:30px}header p{margin:6px 0 0;color:var(--mut)}
+main{display:flex;gap:22px;justify-content:center;align-items:flex-start;flex-wrap:wrap;padding:16px;max-width:1100px;margin:0 auto}
+#boardWrap{position:relative;line-height:0}
+#board{display:grid;grid-template-columns:repeat(8,var(--sq));border:3px solid #0d0f12;border-radius:6px;overflow:hidden;touch-action:none}
+.sq{width:var(--sq);height:var(--sq);display:flex;align-items:center;justify-content:center;font-size:calc(var(--sq)*.72);cursor:pointer;user-select:none;-webkit-user-select:none;position:relative}
+.sq.l{background:var(--light)}.sq.d{background:var(--dark)}
+.sq.hl{background:var(--hl)}
+.sq.sel{outline:3px solid var(--sel);outline-offset:-3px}
+.sq.drop{outline:3px dashed var(--sel);outline-offset:-3px}
+.sq .pc{line-height:1;pointer-events:none}
+.sq.w .pc{color:#fff;text-shadow:0 0 2px #000,0 1px 2px #000}
+.sq.b .pc{color:#111;text-shadow:0 0 3px #fff}
+.coord{position:absolute;font-size:11px;line-height:1;pointer-events:none;font-weight:700}
+.coord.rank{top:3px;left:3px}.coord.file{bottom:2px;right:4px}
+.sq.l .coord{color:var(--dark)}.sq.d .coord{color:var(--light)}
+#arrow{position:absolute;inset:0;pointer-events:none;z-index:5}
+aside{width:330px;max-width:92vw;background:var(--panel);border-radius:10px;padding:16px}
+aside h2{margin:0 0 8px;font-size:18px}
+.row{display:flex;gap:8px;margin:8px 0;flex-wrap:wrap}
+button{background:var(--acc);border:0;color:#06263f;font-weight:700;border-radius:8px;padding:10px 14px;font-size:15px;cursor:pointer}
+button:hover{filter:brightness(1.1)}button:disabled{opacity:.55;cursor:wait}
+button.ghost{background:#3a4048;color:var(--ink)}
+select{background:#14171b;color:var(--ink);border:1px solid #3a4048;border-radius:8px;padding:9px;font-size:14px}
+label{color:var(--mut);font-size:14px}
+#status{color:var(--mut);font-size:14px;min-height:20px}
+#moves{list-style:none;margin:10px 0;padding:0;display:flex;flex-direction:column;gap:8px}
+#moves li{background:#14171b;border-radius:8px;padding:10px 12px;font-size:15px;cursor:pointer}
+#moves .mv{font-weight:800;font-size:18px}
+#moves .sc{float:right;font-variant-numeric:tabular-nums;color:var(--acc);font-weight:700}
+#moves .pv{color:var(--mut);font-size:13px;display:block;margin-top:2px;word-break:break-word}
+#tray{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;background:#14171b;border-radius:8px;padding:8px}
+#tray .pc{font-size:32px;cursor:grab;padding:2px 6px;border-radius:6px}
+#tray .pc:hover{background:#2c313a}
+#trash{border:1px dashed #5b636d;border-radius:8px;color:var(--mut);text-align:center;padding:8px;font-size:13px}
+#trash.over{background:#4a1d1d}
+.hint{color:var(--mut);font-size:13px;line-height:1.45}
+@media(max-width:640px){:root{--sq:min(11.5vw,56px)}header h1{font-size:24px}}
+</style>
+</head>
+<body>
+<header>
+<h1>Next Chess Move</h1>
+<p>Set up any position &mdash; Stockfish 19 calculates the best move. 100% free, runs in your browser.</p>
+</header>
+<main>
+<div>
+<div id="boardWrap"><div id="board" role="grid" aria-label="Chessboard"></div><svg id="arrow" aria-hidden="true"></svg></div>
+<p class="hint">Drag pieces (or tap piece, then square). Drag off-board onto trash to remove. Promotion auto-queens.</p>
+</div>
+<aside>
+<h2>Calculate</h2>
+<div class="row">
+<label>Side to move <select id="side"><option value="w">White</option><option value="b">Black</option></select></label>
+<label>Depth <select id="depth"><option value="18">Fast (18)</option><option value="22" selected>Normal (22)</option><option value="26">Deep (26)</option></select></label>
+</div>
+<div class="row">
+<button id="go">&#9654; Calculate Next Move</button>
+<button id="stop" class="ghost" disabled>Stop</button>
+</div>
+<div class="row">
+<button id="flip" class="ghost">&#8645; Flip board</button>
+<button id="reset" class="ghost">&#8635; Reset</button>
+<button id="clear" class="ghost">Clear</button>
+</div>
+<div id="status">Engine loading&hellip;</div>
+<ol id="moves"></ol>
+<h2>Setup pieces</h2>
+<div id="tray" aria-label="Spare pieces"></div>
+<div id="trash">trash: drag a piece here to remove it</div>
+<p class="hint" id="fen" style="word-break:break-all"></p>
+</aside>
+</main>
+<script src="chess.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
