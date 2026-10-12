@@ -9,6 +9,9 @@ const boardEl = $("board"), arrowSvg = $("arrow"), movesEl = $("moves"),
 let B = parsePlacement(START_PLACEMENT);
 let side = "w", flipped = false, sel = null, legalCache = [];
 let castling = "KQkq", ep = "-";
+let hist = [];
+const pushHist = () => { hist.push({ B: B.slice(), side, castling }); if (hist.length > 50) hist.shift(); };
+const dirty = () => { results = []; movesEl.innerHTML = ""; drawArrows([]); };
 let engine = null, engineReady = false, thinking = false, results = [];
 
 const fen = () => fenOf(B, side, castling, ep);
@@ -19,9 +22,9 @@ function render() {
   const size = boardEl.clientWidth || 512;
   arrowSvg.setAttribute("viewBox", "0 0 " + size + " " + size);
   for (let R = 0; R < 8; R++) for (let F = 0; F < 8; F++) {
-    const f = flipped ? 7 - F : F, r = flipped ? 7 - R : R, i = idx(f, r);
+    const f = flipped ? 7 - F : F, r = flipped ? R : 7 - R, i = idx(f, r);
     const d = document.createElement("div");
-    d.className = "sq " + (((f + r) % 2) ? "d" : "l");
+    d.className = "sq " + (((f + r) % 2) ? "l" : "d");
     d.dataset.i = i;
     d.setAttribute("role", "gridcell");
     const c = B[i];
@@ -74,6 +77,7 @@ function normCastle() {
 
 function doMove(from, to) {
   if (!B[from]) return;
+  pushHist();
   let p = B[from];
   if (p.toLowerCase() === "p" && (((to / 8) | 0) === (isW(p) ? 7 : 0))) p = isW(p) ? "Q" : "q"; // ponytail: auto-queen; upgrade = promotion picker
   B[to] = p; B[from] = "";
@@ -86,21 +90,30 @@ function doMove(from, to) {
     if (sq === "h8") castling = castling.replace("k", "");
   }
   normCastle();
+  side = isW(p) ? "b" : "w";
   sel = null; legalCache = [];
-  render();
+  dirty(); render();
+}
+
+function placeTray(i) {
+  let p = trayPiece;
+  if (p.toLowerCase() === "p" && (((i / 8) | 0) === (p === p.toUpperCase() ? 7 : 0))) p = p === p.toUpperCase() ? "Q" : "q";
+  pushHist();
+  B[i] = p; trayPiece = null;
+  document.querySelectorAll("#tray .pc").forEach(e => e.style.outline = "");
+  sel = null; legalCache = [];
+  dirty(); render();
 }
 
 function tap(i) {
+  if (trayPiece) { placeTray(i); return; }
   if (sel === null) {
     if (!B[i]) return;
-    sel = i;
-    legalCache = colOf(B[i]) === side ? legalMoves(B, i, side) : pseudo(B, i); // free setup: either color selectable
+    sel = i; legalCache = pseudo(B, i);
     render(); return;
   }
   if (sel === i) { sel = null; legalCache = []; render(); return; }
-  if (legalCache.includes(i)) { doMove(sel, i); return; }
-  if (B[i]) { sel = i; legalCache = colOf(B[i]) === side ? legalMoves(B, i, side) : pseudo(B, i); render(); }
-  else { sel = null; legalCache = []; render(); }
+  doMove(sel, i); // ponytail: free setup, any tap-target moves; upgrade = legal-only mode
 }
 
 let drag = null, trayPiece = null;
@@ -108,7 +121,8 @@ const boardSq = ev => { const t = ev.target.closest(".sq"); return t ? +t.datase
 
 boardEl.addEventListener("pointerdown", ev => {
   const i = boardSq(ev);
-  if ((i === null || !B[i]) && !trayPiece) return;
+  if (i === null && !trayPiece) return;
+  if (!B[i] && !trayPiece && sel === null) return;
   drag = { from: trayPiece ? null : i, piece: trayPiece || B[i], x0: ev.clientX, y0: ev.clientY, moved: false };
   if (trayPiece) { trayPiece = null; document.querySelectorAll("#tray .pc").forEach(e => e.style.outline = ""); }
   ev.preventDefault();
@@ -120,28 +134,30 @@ window.addEventListener("pointermove", ev => {
   const hov = document.elementFromPoint(ev.clientX, ev.clientY);
   const sq = hov && hov.closest ? hov.closest(".sq") : null;
   if (sq && drag.moved) sq.classList.add("drop");
-  const tr = hov && hov.closest ? hov.closest("#trash") : null;
-  $("trash").classList.toggle("over", !!tr && drag.from !== null);
 });
 window.addEventListener("pointerup", ev => {
   if (!drag) return;
   const d = drag; drag = null;
   document.querySelectorAll(".sq.drop").forEach(e => e.classList.remove("drop"));
-  $("trash").classList.remove("over");
   const hov = document.elementFromPoint(ev.clientX, ev.clientY);
   const sq = hov && hov.closest ? hov.closest(".sq") : null;
-  const tr = hov && hov.closest ? hov.closest("#trash") : null;
-  if (tr && d.from !== null) { B[d.from] = ""; sel = null; legalCache = []; render(); return; }
+  if (!sq && d.from !== null && d.moved) { pushHist(); B[d.from] = ""; sel = null; legalCache = []; dirty(); render(); return; }
+  if (!d.moved) {
+    if (sq) { tap(+sq.dataset.i); return; }
+    if (trayPiece) { trayPiece = null; document.querySelectorAll("#tray .pc").forEach(e => e.style.outline = ""); return; }
+    if (d.from !== null) { tap(d.from); return; }
+    return;
+  }
   if (sq && d.moved) {
     const to = +sq.dataset.i;
     if (d.from === null) {
       let p = d.piece;
       if (p.toLowerCase() === "p" && (((to / 8) | 0) === (p === p.toUpperCase() ? 7 : 0))) p = p === p.toUpperCase() ? "Q" : "q";
-      B[to] = p; sel = null; legalCache = []; render(); return;
+      pushHist();
+      B[to] = p; sel = null; legalCache = []; dirty(); render(); return;
     }
     if (to !== d.from) { doMove(d.from, to); return; }
   }
-  if (d.from !== null && !d.moved) tap(d.from);
 });
 
 function buildTray() {
@@ -193,7 +209,7 @@ function paint() {
     li.title = "Click to play this move";
     li.onclick = () => {
       const f = sqIndex(r.from), t = sqIndex(r.to);
-      if (B[f]) { doMove(f, t); side = side === "w" ? "b" : "w"; render(); }
+      if (B[f]) doMove(f, t);
     };
     movesEl.appendChild(li);
   });
@@ -236,15 +252,47 @@ goBtn.onclick = () => {
   engine.postMessage("go depth " + depthEl.value);
 };
 stopBtn.onclick = () => { if (engine && thinking) engine.postMessage("stop"); };
-sideEl.onchange = e => { side = e.target.value; sel = null; legalCache = []; render(); };
+sideEl.onchange = e => { pushHist(); side = e.target.value; sel = null; legalCache = []; dirty(); render(); };
 $("flip").onclick = () => { flipped = !flipped; render(); paint(); };
 $("reset").onclick = () => {
+  pushHist();
   B = parsePlacement(START_PLACEMENT); side = "w"; castling = "KQkq"; ep = "-";
   sel = null; legalCache = []; results = []; movesEl.innerHTML = ""; drawArrows([]);
   setStatus(engineReady ? "Board reset. Press Calculate." : "Engine loading\u2026");
   render();
 };
-$("clear").onclick = () => { B = new Array(64).fill(""); sel = null; legalCache = []; render(); };
+$("clear").onclick = () => { pushHist(); B = new Array(64).fill(""); sel = null; legalCache = []; dirty(); render(); };
 window.addEventListener("resize", () => { render(); paint(); });
+window.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  sel = null; legalCache = [];
+  if (trayPiece) { trayPiece = null; document.querySelectorAll("#tray .pc").forEach(x => x.style.outline = ""); }
+  render();
+});
+boardEl.addEventListener("contextmenu", e => { e.preventDefault(); sel = null; legalCache = []; render(); });
+$("undo").onclick = () => {
+  const h = hist.pop();
+  if (!h) return;
+  B = h.B; side = h.side; castling = h.castling;
+  sel = null; legalCache = []; dirty(); render();
+};
+function loadFen(str) {
+  const m = str.match(/^\s*([prnbqkPRNBQK1-8\/]+)\s+([wb])\b(?:\s+([KQkq-]{1,4}))?/);
+  if (!m) return false;
+  try {
+    const nb = parsePlacement(m[1]);
+    if (nb.every(c => !c)) return false;
+    pushHist();
+    B = nb; side = m[2]; if (m[3]) castling = m[3] === "-" ? "-" : m[3];
+    sel = null; legalCache = [];
+    return true;
+  } catch (e) { return false; }
+}
+fenEl.title = "Click to copy FEN";
+fenEl.onclick = () => { navigator.clipboard.writeText(fen()); setStatus("FEN copied."); };
+$("fenGo").onclick = () => {
+  if (loadFen($("fenIn").value)) { dirty(); render(); setStatus("Position loaded. Press Calculate."); }
+  else setStatus("Invalid FEN \u2014 need placement + side, e.g. \u201Crnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq\u201D.");
+};
 
 buildTray(); render(); boot();
