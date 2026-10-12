@@ -2,7 +2,7 @@
 /* app.js - DOM + engine wiring. chess.js (above) holds the rules. */
 const GLYPH = { k: "\u265A", q: "\u265B", r: "\u265C", b: "\u265D", n: "\u265E", p: "\u265F" };
 const $ = id => document.getElementById(id);
-const boardEl = $("board"), arrowSvg = $("arrow"), movesEl = $("moves"),
+const boardEl = $("board"), movesEl = $("moves"),
       statusEl = $("status"), fenEl = $("fen"), sideEl = $("side"), depthEl = $("depth"),
       goBtn = $("go"), stopBtn = $("stop");
 
@@ -11,7 +11,7 @@ let side = "w", flipped = false, sel = null, legalCache = [];
 let castling = "KQkq", ep = "-";
 let hist = [];
 const pushHist = () => { hist.push({ B: B.slice(), side, castling }); if (hist.length > 50) hist.shift(); };
-const dirty = () => { results = []; movesEl.innerHTML = ""; drawArrows([]); };
+const dirty = () => { results = []; movesEl.innerHTML = ""; markBest(); };
 let engine = null, engineReady = false, thinking = false, results = [];
 
 const fen = () => fenOf(B, side, castling, ep);
@@ -19,8 +19,6 @@ const setStatus = t => { statusEl.innerHTML = t; };
 
 function render() {
   boardEl.innerHTML = "";
-  const size = boardEl.clientWidth || 512;
-  arrowSvg.setAttribute("viewBox", "0 0 " + size + " " + size);
   for (let R = 0; R < 8; R++) for (let F = 0; F < 8; F++) {
     const f = flipped ? 7 - F : F, r = flipped ? R : 7 - R, i = idx(f, r);
     const d = document.createElement("div");
@@ -42,33 +40,7 @@ function render() {
   }
   fenEl.textContent = "FEN: " + fen();
   sideEl.value = side;
-}
-
-function drawArrows(mvs) {
-  arrowSvg.innerHTML = "";
-  const size = boardEl.clientWidth || 512, u = size / 8;
-  const cols = ["#22d3ee", "#a3e635", "#fb923c"];
-  mvs.slice(0, 3).forEach((m, k) => {
-    if (!m || !m.from || !m.to) return;
-    const f1 = "abcdefgh".indexOf(m.from[0]), r1 = +m.from[1] - 1;
-    const f2 = "abcdefgh".indexOf(m.to[0]), r2 = +m.to[1] - 1;
-    const cx1 = (flipped ? 7 - f1 : f1) * u + u / 2, cy1 = (flipped ? r1 : 7 - r1) * u + u / 2;
-    const cx2 = (flipped ? 7 - f2 : f2) * u + u / 2, cy2 = (flipped ? r2 : 7 - r2) * u + u / 2;
-    const dx = cx2 - cx1, dy = cy2 - cy1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-    const ex = cx2 - ux * u * 0.32, ey = cy2 - uy * u * 0.32;
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("opacity", k ? "0.65" : "0.95");
-    const ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    ln.setAttribute("x1", cx1); ln.setAttribute("y1", cy1);
-    ln.setAttribute("x2", ex); ln.setAttribute("y2", ey);
-    ln.setAttribute("stroke", cols[k]); ln.setAttribute("stroke-width", u * 0.12);
-    ln.setAttribute("stroke-linecap", "round");
-    const pg = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-    pg.setAttribute("points", cx2 + "," + cy2 + " " + (ex - uy * u * 0.22) + "," + (ey + ux * u * 0.22) + " " + (ex + uy * u * 0.22) + "," + (ey - ux * u * 0.22));
-    pg.setAttribute("fill", cols[k]);
-    g.appendChild(ln); g.appendChild(pg); arrowSvg.appendChild(g);
-  });
-  arrowSvg.setAttribute("viewBox", "0 0 " + size + " " + size);
+  markBest();
 }
 
 function normCastle() {
@@ -198,6 +170,12 @@ function onInfo(line) {
   paint();
 }
 
+function markBest() { // ponytail: top-1 highlight only; upgrade = per-line toggle if MultiPV UI returns
+  boardEl.querySelectorAll(".sq.best").forEach(e => e.classList.remove("best"));
+  const top = results.filter(Boolean)[0];
+  if (top) for (const sq of [top.from, top.to]) { const el = boardEl.querySelector('[data-i="' + sqIndex(sq) + '"]'); if (el) el.classList.add("best"); }
+}
+
 function paint() {
   movesEl.innerHTML = "";
   results.filter(Boolean).forEach((r, k) => {
@@ -213,13 +191,13 @@ function paint() {
     };
     movesEl.appendChild(li);
   });
-  drawArrows(results.filter(Boolean));
+  markBest();
 }
 
 function onDone() {
   thinking = false; goBtn.disabled = false; stopBtn.disabled = true;
   if (!results.filter(Boolean).length) { setStatus("No legal moves \u2014 checkmate or stalemate."); return; }
-  setStatus("Done \u2014 click a move to play it.");
+  setStatus("Done \u2014 best move highlighted in blue; click a move to play it.");
   paint();
 }
 
@@ -244,7 +222,7 @@ function boot() {
 
 goBtn.onclick = () => {
   if (!engineReady) { setStatus("Engine still loading \u2014 try again in a moment."); return; }
-  results = []; movesEl.innerHTML = ""; drawArrows([]);
+  dirty();
   thinking = true; goBtn.disabled = true; stopBtn.disabled = false;
   setStatus("Thinking\u2026 (depth " + depthEl.value + ", top 3 moves)");
   engine.postMessage("setoption name MultiPV value 3");
@@ -257,7 +235,7 @@ $("flip").onclick = () => { flipped = !flipped; render(); paint(); };
 $("reset").onclick = () => {
   pushHist();
   B = parsePlacement(START_PLACEMENT); side = "w"; castling = "KQkq"; ep = "-";
-  sel = null; legalCache = []; results = []; movesEl.innerHTML = ""; drawArrows([]);
+  sel = null; legalCache = []; dirty();
   setStatus(engineReady ? "Board reset. Press Calculate." : "Engine loading\u2026");
   render();
 };
