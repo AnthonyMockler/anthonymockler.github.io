@@ -42,8 +42,6 @@ label{color:var(--mut);font-size:14px}
 #tray{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;background:#14171b;border-radius:8px;padding:8px}
 #tray .pc{font-size:32px;cursor:grab;padding:2px 6px;border-radius:6px}
 #tray .pc:hover{background:#2c313a}
-#trash{border:1px dashed #5b636d;border-radius:8px;color:var(--mut);text-align:center;padding:8px;font-size:13px}
-#trash.over{background:#4a1d1d}
 .hint{color:var(--mut);font-size:13px;line-height:1.45}
 @media(max-width:640px){:root{--sq:min(11.5vw,56px)}header h1{font-size:24px}}
 </style>
@@ -56,7 +54,7 @@ label{color:var(--mut);font-size:14px}
 <main>
 <div>
 <div id="boardWrap"><div id="board" role="grid" aria-label="Chessboard"></div><svg id="arrow" aria-hidden="true"></svg></div>
-<p class="hint">Drag pieces (or tap piece, then square). Drag off-board onto trash to remove. Promotion auto-queens.</p>
+<p class="hint">Tap a piece, then tap a square &mdash; or drag. Drag a piece off the board to remove it. Click the FEN to copy, paste one above to load. Promotion auto-queens.</p>
 </div>
 <aside>
 <h2>Calculate</h2>
@@ -72,13 +70,14 @@ label{color:var(--mut);font-size:14px}
 <button id="flip" class="ghost">&#8645; Flip board</button>
 <button id="reset" class="ghost">&#8635; Reset</button>
 <button id="clear" class="ghost">Clear</button>
+<button id="undo" class="ghost">&#8617; Undo</button>
 </div>
 <div id="status">Engine loading&hellip;</div>
 <ol id="moves"></ol>
 <h2>Setup pieces</h2>
 <div id="tray" aria-label="Spare pieces"></div>
-<div id="trash">trash: drag a piece here to remove it</div>
-<p class="hint" id="fen" style="word-break:break-all"></p>
+<div class="row"><input id="fenIn" placeholder="Paste FEN here" style="flex:1;min-width:0;background:#14171b;color:var(--ink);border:1px solid #3a4048;border-radius:8px;padding:9px;font-size:13px" spellcheck="false"><button id="fenGo" class="ghost">Load</button></div>
+<p class="hint" id="fen" title="Click to copy" style="word-break:break-all;cursor:pointer"></p>
 </aside>
 </main>
 <script src="chess.js"></script>
